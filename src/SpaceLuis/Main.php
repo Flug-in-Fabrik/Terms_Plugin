@@ -23,7 +23,7 @@
  # @Band : Unknown.....(Sorry)
 */
 
-namespace SpaceLuis; 
+namespace SpaceLuis;
 
 use pocketmine\plugin\PluginBase;
 
@@ -39,37 +39,38 @@ use pocketmine\event\server\DataPacketReceiveEvent;
 
 use pocketmine\Player;
 
-class Main extends PluginBase implements Listener{ 
-    
+class Main extends PluginBase implements Listener{
+
     public const FORM_RESPONSE = 77177;
+
+    /** @var Config */
+    public $data;
+
+    public $db = [];
 
     public function onEnable(){
         $this->getServer()->getPluginManager()->registerEvents($this,$this);
-        
+
         @mkdir($this->getDataFolder());
 		$this->data = new Config($this->getDataFolder() . "data.yml", Config::YAML);
 		$this->db = $this->data->getAll();
     }
-    
+
     public function onJoin(PlayerJoinEvent $event){
         $player = $event->getPlayer();
 		$name = $player->getName();
 		if(!isset($this->db[$name])){
 			$this->termUI($player);
-		}
-		else if($this->db[$name]["약관동의"] == "X"){
-		    $this->termUI($player);
-		}else{
+		} else {
 		    $player->addTitle("§b# §fWelcome","§7AD 서버에 오신걸 환영합니다!");
 		}
-		return true;
     }
-    
-    public function onSave(){
+
+    public function onDisable(){
 		$this->data->setAll($this->db);
 		$this->data->save();
 	}
-    
+
     public function termUI(Player $player) {
         $form = [
             "type" => "modal",
@@ -88,26 +89,24 @@ class Main extends PluginBase implements Listener{
         $pk->formData = json_encode($form);
         $player->sendDataPacket($pk);
     }
-    
+
     public function onReceive(DataPacketReceiveEvent $event) {
         $pk = $event->getPacket();
         $player = $event->getPlayer();
-        
+
         $name = $player->getName();
         if ($pk instanceof ModalFormResponsePacket) {
             if ($pk->formId == self::FORM_RESPONSE) {
                 $data = json_decode($pk->formData, true);
-                if ($data === true) {
-                    $this->db[$name]["약관동의"] = "O";
-                    $player->sendMessage("§b[ §fSystem §b] §7약관에 동의해주셔서 감사합니다.");
-                    $this->onSave();
-                }
-                else if($data === false){
-                    $this->db[$name]["약관동의"] = "X";
-                    $player->kick("약관 미동의로 게임을 플레이 하실 수 없습니다. 다시 접속하여 약관에 동의해주세요.");
-                    $this->onSave();
-                }
+                if (!is_null($data)) {
+					if ($data) {
+						$this->db[$name]["약관동의"] = "O";
+						$player->sendMessage("§b[ §fSystem §b] §7약관에 동의해주셔서 감사합니다.");
+					} else {
+						$player->kick("약관 미동의로 게임을 플레이 하실 수 없습니다. 다시 접속하여 약관에 동의해주세요.");
+					}
+				}
             }
         }
-        }
+    }
 }
